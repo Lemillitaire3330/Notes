@@ -1,11 +1,20 @@
-<div align="center">
+# Notes Sécurisées
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Une application Android de prise de notes ultra-minimaliste, axée sur la confidentialité et la protection de la vie privée.
 
-  <h1>Built with AI Studio</h2>
+##  Fonctionnalités
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Protection active :** Chaque note est verrouillée individuellement par mot de passe.
+- **Protection contre les curieux :** Empêche l'accès visuel direct à vos notes par un tiers ayant le téléphone en main.
+- **Stockage local :** Base de données locale (Room / SQLite) sécurisée sur l'appareil.
+- **100 % Hors-ligne :** Aucune permission réseau demandée (`INTERNET` non requis).
+- **Zéro traqueur :** Pas d'analyse de données, pas de publicité, pas de services tiers.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+##  Sécurité & Permissions
 
-</div>
+- **Permissions demandées :** Aucune (0 permission).
+- **Accès réseau :** Impossible (blocage au niveau du système Android).
+
+##  Licence
+
+Ce projet est sous licence libre **GPLv3**.

@@ -1,0 +1,6 @@
+{
+  "name": "Notes Sécurisées",
+  "description": "Bloc-notes sécurisé avec mot de passe individuel par note et sauvegarde automatique.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
