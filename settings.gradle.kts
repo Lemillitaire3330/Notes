@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Notes Sécurisées"
+rootProject.name = "Secure Note"
 
 include(":app")

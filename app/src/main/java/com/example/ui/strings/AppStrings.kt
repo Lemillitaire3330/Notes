@@ -5,7 +5,7 @@ import com.example.data.settings.AppLanguage
 class AppStrings(val language: AppLanguage) {
 
     val appTitle: String = when (language) {
-        AppLanguage.ENGLISH -> "Secure Notes"
+        AppLanguage.ENGLISH -> "Secure Note"
         AppLanguage.FRENCH -> "Notes Sécurisées"
         AppLanguage.CHINESE -> "安全便签"
     }

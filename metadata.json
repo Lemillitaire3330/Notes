@@ -1,6 +1,6 @@
 {
-  "name": "Notes Sécurisées",
-  "description": "Bloc-notes sécurisé avec mot de passe individuel par note et sauvegarde automatique.",
+  "name": "Secure Note",
+  "description": "Secure offline notes app with individual password protection and automatic saving.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
