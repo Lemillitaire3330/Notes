@@ -3,30 +3,31 @@ package com.example.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.crypto.CryptoUtils
 import com.example.data.NoteRepository
 import com.example.data.SecureNote
+import com.example.data.settings.SettingsManager
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 enum class Screen {
     LIST,
-    EDITOR
+    EDITOR,
+    SETTINGS
 }
 
-class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
+class NoteViewModel(
+    private val repository: NoteRepository,
+    val settingsManager: SettingsManager
+) : ViewModel() {
 
     val searchQuery = MutableStateFlow("")
 
@@ -54,8 +55,11 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
     val editorColorIndex = MutableStateFlow(0)
     val editorIsAutoSave = MutableStateFlow(true)
 
-    private val _editorSaveStatus = MutableStateFlow("Prêt")
-    val editorSaveStatus: StateFlow<String> = _editorSaveStatus.asStateFlow()
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    private val _hasUnsavedChanges = MutableStateFlow(false)
+    val hasUnsavedChanges: StateFlow<Boolean> = _hasUnsavedChanges.asStateFlow()
 
     private val _lastSavedTime = MutableStateFlow<Long?>(null)
     val lastSavedTime: StateFlow<Long?> = _lastSavedTime.asStateFlow()
@@ -63,8 +67,7 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
     private val _unlockedNoteIds = MutableStateFlow<Set<Long>>(emptySet())
     val unlockedNoteIds: StateFlow<Set<Long>> = _unlockedNoteIds.asStateFlow()
 
-    private var autoSaveJob: Job? = null
-    private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    private val unlockedPasswords = mutableMapOf<Long, String>()
 
     init {
         // Observe text changes for debounced auto-save
@@ -76,13 +79,19 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             .collect { (title, content) ->
                 val activeNote = _currentNote.value
                 if (activeNote != null && editorIsAutoSave.value && _currentScreen.value == Screen.EDITOR) {
-                    val hasChanged = title != activeNote.title || content != activeNote.content
-                    if (hasChanged) {
-                        saveNoteToDb(title, content)
-                    }
+                    val currentClearContent = editorContent.value
+                    saveNoteToDb(title, currentClearContent)
                 }
             }
         }
+    }
+
+    fun openSettings() {
+        _currentScreen.value = Screen.SETTINGS
+    }
+
+    fun closeSettings() {
+        _currentScreen.value = Screen.LIST
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -90,34 +99,46 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
     }
 
     fun verifyPassword(note: SecureNote, enteredPass: String): Boolean {
-        return note.password == enteredPass
+        return CryptoUtils.verifyPassword(enteredPass, note.password)
     }
 
     fun unlockAndOpenNote(note: SecureNote, enteredPass: String): Boolean {
-        if (verifyPassword(note, enteredPass)) {
-            _unlockedNoteIds.value = _unlockedNoteIds.value + note.id
-            openNoteInEditor(note)
-            return true
+        if (!verifyPassword(note, enteredPass)) {
+            return false
         }
-        return false
+        val decryptedContent = try {
+            CryptoUtils.decrypt(note.content, enteredPass)
+        } catch (e: Exception) {
+            return false
+        }
+        _unlockedNoteIds.value = _unlockedNoteIds.value + note.id
+        unlockedPasswords[note.id] = enteredPass
+        openNoteInEditor(note, decryptedContent, enteredPass)
+        return true
     }
 
     fun openUnlockedNote(note: SecureNote) {
-        if (_unlockedNoteIds.value.contains(note.id)) {
-            openNoteInEditor(note)
+        val cachedPass = unlockedPasswords[note.id]
+        if (cachedPass != null) {
+            val decryptedContent = try {
+                CryptoUtils.decrypt(note.content, cachedPass)
+            } catch (e: Exception) {
+                note.content
+            }
+            openNoteInEditor(note, decryptedContent, cachedPass)
         }
     }
 
-    private fun openNoteInEditor(note: SecureNote) {
+    private fun openNoteInEditor(note: SecureNote, decryptedContent: String, clearPassword: String) {
         _currentNote.value = note
         editorTitle.value = note.title
-        editorContent.value = note.content
-        editorPassword.value = note.password
+        editorContent.value = decryptedContent
+        editorPassword.value = clearPassword
         editorPasswordHint.value = note.passwordHint
         editorColorIndex.value = note.colorIndex
         editorIsAutoSave.value = note.isAutoSaveEnabled
         _lastSavedTime.value = note.updatedAt
-        _editorSaveStatus.value = "Enregistré à ${timeFormatter.format(Date(note.updatedAt))}"
+        _hasUnsavedChanges.value = false
         _currentScreen.value = Screen.EDITOR
     }
 
@@ -129,12 +150,14 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
         isAutoSave: Boolean
     ) {
         viewModelScope.launch {
-            val cleanTitle = if (title.isBlank()) "Nouvelle note" else title.trim()
+            val cleanTitle = if (title.isBlank()) "Note" else title.trim()
             val now = System.currentTimeMillis()
+            val encryptedContent = CryptoUtils.encrypt("", password)
+            val hashedPassword = CryptoUtils.hashPassword(password)
             val newNote = SecureNote(
                 title = cleanTitle,
-                content = "",
-                password = password,
+                content = encryptedContent,
+                password = hashedPassword,
                 passwordHint = hint.trim(),
                 colorIndex = colorIndex,
                 isPinned = false,
@@ -145,21 +168,22 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             val generatedId = repository.insertNote(newNote)
             val createdNote = newNote.copy(id = generatedId)
             _unlockedNoteIds.value = _unlockedNoteIds.value + generatedId
-            openNoteInEditor(createdNote)
+            unlockedPasswords[generatedId] = password
+            openNoteInEditor(createdNote, "", password)
         }
     }
 
     fun onTitleChange(newTitle: String) {
         editorTitle.value = newTitle
         if (!editorIsAutoSave.value) {
-            _editorSaveStatus.value = "Modifications non enregistrées"
+            _hasUnsavedChanges.value = true
         }
     }
 
     fun onContentChange(newContent: String) {
         editorContent.value = newContent
         if (!editorIsAutoSave.value) {
-            _editorSaveStatus.value = "Modifications non enregistrées"
+            _hasUnsavedChanges.value = true
         }
     }
 
@@ -183,14 +207,25 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
 
     private fun saveNoteToDb(title: String, content: String) {
         val activeNote = _currentNote.value ?: return
+        val pass = editorPassword.value
         viewModelScope.launch {
-            _editorSaveStatus.value = "Enregistrement..."
+            _isSaving.value = true
             val now = System.currentTimeMillis()
-            val cleanTitle = if (title.isBlank()) "Sans titre" else title.trim()
+            val cleanTitle = if (title.isBlank()) "Note" else title.trim()
+            val encryptedContent = if (pass.isNotEmpty()) {
+                CryptoUtils.encrypt(content, pass)
+            } else {
+                content
+            }
+            val passwordField = if (pass.isNotEmpty() && !activeNote.password.startsWith(CryptoUtils.PREFIX_HASH)) {
+                CryptoUtils.hashPassword(pass)
+            } else {
+                activeNote.password
+            }
             val updated = activeNote.copy(
                 title = cleanTitle,
-                content = content,
-                password = editorPassword.value,
+                content = encryptedContent,
+                password = passwordField,
                 passwordHint = editorPasswordHint.value,
                 colorIndex = editorColorIndex.value,
                 isAutoSaveEnabled = editorIsAutoSave.value,
@@ -199,7 +234,8 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             repository.updateNote(updated)
             _currentNote.value = updated
             _lastSavedTime.value = now
-            _editorSaveStatus.value = "Enregistré à ${timeFormatter.format(Date(now))}"
+            _hasUnsavedChanges.value = false
+            _isSaving.value = false
         }
     }
 
@@ -207,16 +243,20 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
         val activeNote = _currentNote.value ?: return
         editorPassword.value = newPassword
         editorPasswordHint.value = hint
+        unlockedPasswords[activeNote.id] = newPassword
         val now = System.currentTimeMillis()
+        val encryptedContent = CryptoUtils.encrypt(editorContent.value, newPassword)
+        val newPasswordHash = CryptoUtils.hashPassword(newPassword)
         val updated = activeNote.copy(
-            password = newPassword,
+            content = encryptedContent,
+            password = newPasswordHash,
             passwordHint = hint.trim(),
             updatedAt = now
         )
         _currentNote.value = updated
         viewModelScope.launch {
             repository.updateNote(updated)
-            _editorSaveStatus.value = "Mot de passe mis à jour"
+            _lastSavedTime.value = now
         }
     }
 
@@ -243,7 +283,12 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
         viewModelScope.launch {
             repository.deleteNote(note)
             _unlockedNoteIds.value = _unlockedNoteIds.value - note.id
+            unlockedPasswords.remove(note.id)
             if (_currentNote.value?.id == note.id) {
+                editorTitle.value = ""
+                editorContent.value = ""
+                editorPassword.value = ""
+                editorPasswordHint.value = ""
                 _currentNote.value = null
                 _currentScreen.value = Screen.LIST
             }
@@ -257,14 +302,20 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
 
     fun lockAndExitEditor() {
         val activeNote = _currentNote.value
-        if (activeNote != null) {
-            // Save before exit
-            val cleanTitle = if (editorTitle.value.isBlank()) "Sans titre" else editorTitle.value.trim()
+        val pass = editorPassword.value
+        if (activeNote != null && pass.isNotEmpty()) {
+            val cleanTitle = if (editorTitle.value.isBlank()) "Note" else editorTitle.value.trim()
             val now = System.currentTimeMillis()
+            val encryptedContent = CryptoUtils.encrypt(editorContent.value, pass)
+            val passwordField = if (!activeNote.password.startsWith(CryptoUtils.PREFIX_HASH)) {
+                CryptoUtils.hashPassword(pass)
+            } else {
+                activeNote.password
+            }
             val updated = activeNote.copy(
                 title = cleanTitle,
-                content = editorContent.value,
-                password = editorPassword.value,
+                content = encryptedContent,
+                password = passwordField,
                 passwordHint = editorPasswordHint.value,
                 colorIndex = editorColorIndex.value,
                 isAutoSaveEnabled = editorIsAutoSave.value,
@@ -273,23 +324,31 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             viewModelScope.launch {
                 repository.updateNote(updated)
             }
-            // Lock note on exit so password is required again
             _unlockedNoteIds.value = _unlockedNoteIds.value - activeNote.id
+            unlockedPasswords.remove(activeNote.id)
         }
+        editorTitle.value = ""
+        editorContent.value = ""
+        editorPassword.value = ""
+        editorPasswordHint.value = ""
         _currentNote.value = null
         _currentScreen.value = Screen.LIST
     }
 
     fun lockNote(noteId: Long) {
         _unlockedNoteIds.value = _unlockedNoteIds.value - noteId
+        unlockedPasswords.remove(noteId)
     }
 }
 
-class NoteViewModelFactory(private val repository: NoteRepository) : ViewModelProvider.Factory {
+class NoteViewModelFactory(
+    private val repository: NoteRepository,
+    private val settingsManager: SettingsManager
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return NoteViewModel(repository) as T
+            return NoteViewModel(repository, settingsManager) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

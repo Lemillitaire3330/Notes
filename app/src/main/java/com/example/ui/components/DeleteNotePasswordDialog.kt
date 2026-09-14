@@ -32,10 +32,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.SecureNote
+import com.example.data.settings.AppLanguage
+import com.example.ui.strings.AppStrings
 
 @Composable
 fun DeleteNotePasswordDialog(
     note: SecureNote,
+    strings: AppStrings = AppStrings(AppLanguage.ENGLISH),
     onDismiss: () -> Unit,
     onConfirmDelete: (password: String) -> Boolean
 ) {
@@ -56,7 +59,7 @@ fun DeleteNotePasswordDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.DeleteForever,
-                        contentDescription = "Supprimer",
+                        contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(32.dp)
                     )
@@ -69,7 +72,7 @@ fun DeleteNotePasswordDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Supprimer la note",
+                    text = strings.deleteNoteTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error,
@@ -90,7 +93,7 @@ fun DeleteNotePasswordDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Pour confirmer la suppression définitive de cette note, veuillez saisir son mot de passe :",
+                    text = strings.deletePrompt,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,9 +104,9 @@ fun DeleteNotePasswordDialog(
                         password = it
                         if (isError) isError = false
                     },
-                    label = "Mot de passe de la note",
+                    label = strings.passwordLabel,
                     isError = isError,
-                    errorMessage = "Mot de passe incorrect : suppression refusée",
+                    errorMessage = strings.deleteError,
                     onDone = {
                         val success = onConfirmDelete(password)
                         if (!success) {
@@ -120,7 +123,7 @@ fun DeleteNotePasswordDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "💡 Indice : ${note.passwordHint}",
+                            text = "${strings.passwordHintPrefix} ${note.passwordHint}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(8.dp)
@@ -147,7 +150,7 @@ fun DeleteNotePasswordDialog(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(6.dp))
-                Text("Supprimer définitivement")
+                Text(strings.deletePermanentlyButton)
             }
         },
         dismissButton = {
@@ -155,7 +158,7 @@ fun DeleteNotePasswordDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("cancel_delete_password_button")
             ) {
-                Text("Annuler")
+                Text(strings.cancelButton)
             }
         }
     )

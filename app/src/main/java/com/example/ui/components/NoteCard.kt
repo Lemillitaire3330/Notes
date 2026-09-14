@@ -19,11 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,13 +41,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.SecureNote
+import com.example.data.settings.AppLanguage
+import com.example.ui.strings.AppStrings
 import com.example.ui.theme.NoteBackgroundTintsDark
 import com.example.ui.theme.NoteBackgroundTintsLight
 import com.example.ui.theme.NoteColorsDark
@@ -61,6 +62,7 @@ import java.util.Locale
 fun NoteCard(
     note: SecureNote,
     isUnlocked: Boolean,
+    strings: AppStrings = AppStrings(AppLanguage.ENGLISH),
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
     onDelete: () -> Unit,
@@ -76,8 +78,13 @@ fun NoteCard(
 
     var showMenu by remember { mutableStateOf(false) }
 
-    val dateFormatter = remember { SimpleDateFormat("d MMM yyyy à HH:mm", Locale.FRENCH) }
-    val formattedDate = remember(note.updatedAt) { dateFormatter.format(Date(note.updatedAt)) }
+    val locale = when (strings.language) {
+        AppLanguage.ENGLISH -> Locale.ENGLISH
+        AppLanguage.FRENCH -> Locale.FRENCH
+        AppLanguage.CHINESE -> Locale.SIMPLIFIED_CHINESE
+    }
+    val dateFormatter = remember(strings.language) { SimpleDateFormat("d MMM yyyy, HH:mm", locale) }
+    val formattedDate = remember(note.updatedAt, strings.language) { dateFormatter.format(Date(note.updatedAt)) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -86,59 +93,64 @@ fun NoteCard(
             width = if (note.isPinned) 2.dp else 1.dp,
             color = if (note.isPinned) accentColor else accentColor.copy(alpha = 0.35f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (note.isPinned) 4.dp else 1.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (note.isPinned) 4.dp else 1.dp
+        ),
         modifier = modifier
             .fillMaxWidth()
+            .testTag("note_card_${note.id}")
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = { showMenu = true }
             )
-            .testTag("note_card_${note.id}")
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header Row: Color dot, Title, Pin indicator & Menu
+            // Header: Title & Pin/Status/Menu
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Security indicator badge
-                Surface(
-                    shape = CircleShape,
-                    color = accentColor.copy(alpha = 0.2f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isUnlocked) Icons.Rounded.Key else Icons.Rounded.Lock,
-                            contentDescription = if (isUnlocked) "Déverrouillée" else "Verrouillée",
-                            tint = accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Text(
-                    text = note.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f)
-                )
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = accentColor.copy(alpha = 0.2f),
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = note.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 if (note.isPinned) {
                     Icon(
                         imageVector = Icons.Filled.PushPin,
-                        contentDescription = "Note épinglée",
+                        contentDescription = strings.cardPin,
                         tint = accentColor,
                         modifier = Modifier
                             .size(18.dp)
@@ -155,7 +167,7 @@ fun NoteCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options de la note",
+                            contentDescription = strings.settings,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -165,7 +177,7 @@ fun NoteCard(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Ouvrir") },
+                            text = { Text(strings.unlockButton) },
                             leadingIcon = { Icon(Icons.Rounded.Key, contentDescription = null) },
                             onClick = {
                                 showMenu = false
@@ -173,7 +185,7 @@ fun NoteCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (note.isPinned) "Désépingler" else "Épingler") },
+                            text = { Text(if (note.isPinned) strings.cardUnpin else strings.cardPin) },
                             leadingIcon = {
                                 Icon(
                                     if (note.isPinned) Icons.Outlined.PushPin else Icons.Filled.PushPin,
@@ -186,7 +198,7 @@ fun NoteCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Supprimer", color = MaterialTheme.colorScheme.error) },
+                            text = { Text(strings.cardDelete, color = MaterialTheme.colorScheme.error) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Delete,
@@ -219,13 +231,13 @@ fun NoteCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
+                        imageVector = if (isUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = if (isUnlocked) "Note déverrouillée dans cette session" else "Contenu verrouillé par mot de passe",
+                        text = if (isUnlocked) strings.cardUnlocked else strings.cardTapToUnlock,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,

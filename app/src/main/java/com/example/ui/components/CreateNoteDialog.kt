@@ -34,9 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.settings.AppLanguage
+import com.example.ui.strings.AppStrings
 
 @Composable
 fun CreateNoteDialog(
+    strings: AppStrings = AppStrings(AppLanguage.ENGLISH),
     onDismiss: () -> Unit,
     onCreate: (title: String, password: String, hint: String, colorIndex: Int, isAutoSave: Boolean) -> Unit
 ) {
@@ -72,7 +75,7 @@ fun CreateNoteDialog(
         },
         title = {
             Text(
-                text = "Nouvelle Note Sécurisée",
+                text = strings.createNoteTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -82,36 +85,38 @@ fun CreateNoteDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // Title
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Titre de la note") },
-                    placeholder = { Text("Ex: Mes codes secrets") },
+                    label = { Text(strings.noteTitleLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("create_note_title_input")
                 )
 
+                // Password with Show/Hide toggle
                 PasswordField(
                     value = password,
                     onValueChange = {
                         password = it
                         if (hasAttemptedSubmit) hasAttemptedSubmit = false
                     },
-                    label = "Mot de passe de protection *",
+                    label = strings.notePasswordLabel,
                     isError = hasAttemptedSubmit && isPasswordEmpty,
-                    errorMessage = "Un mot de passe est obligatoire pour cette note",
+                    errorMessage = strings.passwordRequiredError,
                     testTag = "create_note_password_input"
                 )
 
+                // Password hint
                 OutlinedTextField(
                     value = passwordHint,
                     onValueChange = { passwordHint = it },
-                    label = { Text("Indice du mot de passe (optionnel)") },
-                    placeholder = { Text("Ex: Année du lycée") },
+                    label = { Text(strings.hintOptionalLabel) },
+                    placeholder = { Text(strings.hintPlaceholder) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,8 +125,8 @@ fun CreateNoteDialog(
 
                 // Auto-save toggle
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -133,12 +138,12 @@ fun CreateNoteDialog(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Sauvegarde automatique",
+                                text = strings.autoSaveLabel,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Enregistre le texte en temps réel pendant la saisie",
+                                text = strings.autoSaveDesc,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -151,13 +156,14 @@ fun CreateNoteDialog(
                     }
                 }
 
-                // Color picker
+                // Color accent picker
                 Column {
                     Text(
-                        text = "Couleur du badge",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = strings.noteColorLabel,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
                     NoteColorPicker(
                         selectedIndex = selectedColorIndex,
@@ -172,16 +178,10 @@ fun CreateNoteDialog(
                     if (isPasswordEmpty) {
                         hasAttemptedSubmit = true
                     } else {
-                        onCreate(
-                            title,
-                            password,
-                            passwordHint,
-                            selectedColorIndex,
-                            isAutoSave
-                        )
+                        onCreate(title, password, passwordHint, selectedColorIndex, isAutoSave)
                     }
                 },
-                modifier = Modifier.testTag("create_note_confirm_button")
+                modifier = Modifier.testTag("confirm_create_note_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
@@ -189,15 +189,15 @@ fun CreateNoteDialog(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(6.dp))
-                Text("Créer la note")
+                Text(strings.createNoteButton)
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
-                modifier = Modifier.testTag("create_note_cancel_button")
+                modifier = Modifier.testTag("cancel_create_note_button")
             ) {
-                Text("Annuler")
+                Text(strings.cancelButton)
             }
         }
     )

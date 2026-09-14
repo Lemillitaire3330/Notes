@@ -26,10 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.settings.AppLanguage
+import com.example.ui.strings.AppStrings
 
 @Composable
 fun ChangePasswordDialog(
     currentHint: String,
+    strings: AppStrings = AppStrings(AppLanguage.ENGLISH),
     onDismiss: () -> Unit,
     onConfirm: (newPassword: String, newHint: String) -> Unit
 ) {
@@ -60,7 +63,7 @@ fun ChangePasswordDialog(
         },
         title = {
             Text(
-                text = "Modifier le mot de passe",
+                text = strings.changePasswordTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -71,7 +74,7 @@ fun ChangePasswordDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Choisissez une nouvelle clé pour protéger cette note.",
+                    text = strings.changePasswordSubtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -82,16 +85,16 @@ fun ChangePasswordDialog(
                         newPassword = it
                         if (isError) isError = false
                     },
-                    label = "Nouveau mot de passe *",
+                    label = strings.newPasswordLabel,
                     isError = isError && newPassword.trim().isEmpty(),
-                    errorMessage = "Le mot de passe ne peut pas être vide",
+                    errorMessage = strings.passwordRequiredError,
                     testTag = "change_password_input"
                 )
 
                 OutlinedTextField(
                     value = newHint,
                     onValueChange = { newHint = it },
-                    label = { Text("Indice du mot de passe (optionnel)") },
+                    label = { Text(strings.hintOptionalLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -110,7 +113,7 @@ fun ChangePasswordDialog(
                 },
                 modifier = Modifier.testTag("change_password_confirm_button")
             ) {
-                Text("Enregistrer")
+                Text(strings.updatePasswordButton)
             }
         },
         dismissButton = {
@@ -118,7 +121,7 @@ fun ChangePasswordDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("change_password_cancel_button")
             ) {
-                Text("Annuler")
+                Text(strings.cancelButton)
             }
         }
     )

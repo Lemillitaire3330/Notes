@@ -29,10 +29,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.SecureNote
+import com.example.data.settings.AppLanguage
+import com.example.ui.strings.AppStrings
 
 @Composable
 fun UnlockDialog(
     note: SecureNote,
+    strings: AppStrings = AppStrings(AppLanguage.ENGLISH),
     onDismiss: () -> Unit,
     onUnlock: (String) -> Boolean
 ) {
@@ -50,7 +53,7 @@ fun UnlockDialog(
                 BoxContainer(modifier = Modifier.padding(12.dp)) {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Note verrouillée",
+                        contentDescription = "Note locked",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
@@ -63,7 +66,7 @@ fun UnlockDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Déverrouiller la note",
+                    text = strings.unlockTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -80,7 +83,7 @@ fun UnlockDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Entrez le mot de passe défini pour accéder au contenu de cette note.",
+                    text = strings.unlockPrompt,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -92,9 +95,9 @@ fun UnlockDialog(
                         password = it
                         if (isError) isError = false
                     },
-                    label = "Mot de passe requis",
+                    label = strings.passwordLabel,
                     isError = isError,
-                    errorMessage = "Mot de passe incorrect",
+                    errorMessage = strings.unlockError,
                     onDone = {
                         val success = onUnlock(password)
                         if (!success) {
@@ -112,7 +115,7 @@ fun UnlockDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "💡 Indice : ${note.passwordHint}",
+                            text = "${strings.passwordHintPrefix} ${note.passwordHint}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(8.dp)
@@ -138,7 +141,7 @@ fun UnlockDialog(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(6.dp))
-                Text("Ouvrir")
+                Text(strings.unlockButton)
             }
         },
         dismissButton = {
@@ -146,7 +149,7 @@ fun UnlockDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("unlock_cancel_button")
             ) {
-                Text("Annuler")
+                Text(strings.cancelButton)
             }
         }
     )

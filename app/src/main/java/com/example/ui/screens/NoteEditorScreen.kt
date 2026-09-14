@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.SyncDisabled
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -50,7 +49,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -72,11 +70,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.ChangePasswordDialog
 import com.example.ui.components.DeleteNotePasswordDialog
 import com.example.ui.components.NoteColorPicker
+import com.example.ui.strings.AppStrings
 import com.example.ui.theme.NoteBackgroundTintsDark
 import com.example.ui.theme.NoteBackgroundTintsLight
 import com.example.ui.theme.NoteColorsDark
 import com.example.ui.theme.NoteColorsLight
 import com.example.ui.viewmodel.NoteViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,8 +91,13 @@ fun NoteEditorScreen(
     val hint by viewModel.editorPasswordHint.collectAsStateWithLifecycle()
     val colorIndex by viewModel.editorColorIndex.collectAsStateWithLifecycle()
     val isAutoSave by viewModel.editorIsAutoSave.collectAsStateWithLifecycle()
-    val saveStatus by viewModel.editorSaveStatus.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsStateWithLifecycle()
+    val lastSavedTime by viewModel.lastSavedTime.collectAsStateWithLifecycle()
     val currentNote by viewModel.currentNote.collectAsStateWithLifecycle()
+    val currentLanguage by viewModel.settingsManager.language.collectAsStateWithLifecycle()
+
+    val strings = remember(currentLanguage) { AppStrings(currentLanguage) }
 
     var showMenu by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -102,6 +109,16 @@ fun NoteEditorScreen(
     val accentColors = if (isDark) NoteColorsDark else NoteColorsLight
     val currentAccent = accentColors[colorIndex.coerceIn(0, accentColors.size - 1)]
     val currentBg = bgTints[colorIndex.coerceIn(0, bgTints.size - 1)]
+
+    val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val saveStatusText = remember(isAutoSave, isSaving, hasUnsavedChanges, lastSavedTime, strings) {
+        when {
+            isSaving -> strings.editorSaving
+            !isAutoSave -> if (hasUnsavedChanges) strings.editorUnsaved else strings.editorAutoSaveDisabled
+            lastSavedTime != null -> strings.editorSavedAt(timeFormatter.format(Date(lastSavedTime ?: 0L)))
+            else -> strings.cardUnlocked
+        }
+    }
 
     // Word and character count computation
     val wordCount by remember(content) {
@@ -129,7 +146,7 @@ fun NoteEditorScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Enregistrer et quitter"
+                            contentDescription = strings.editorLockTooltip
                         )
                     }
                 },
@@ -156,7 +173,7 @@ fun NoteEditorScreen(
                             }
                         }
                         Text(
-                            text = if (title.isBlank()) "Note protégée" else title,
+                            text = if (title.isBlank()) strings.cardProtected else title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -171,7 +188,7 @@ fun NoteEditorScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Save,
-                            contentDescription = "Enregistrer manuellement",
+                            contentDescription = strings.editorSaveTooltip,
                             tint = currentAccent
                         )
                     }
@@ -183,7 +200,7 @@ fun NoteEditorScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = "Verrouiller et quitter",
+                            contentDescription = strings.editorLockTooltip,
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -196,7 +213,7 @@ fun NoteEditorScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Options supplémentaires"
+                                contentDescription = strings.settings
                             )
                         }
 
@@ -205,7 +222,7 @@ fun NoteEditorScreen(
                             onDismissRequest = { showMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Modifier le mot de passe") },
+                                text = { Text(strings.editorMenuChangePassword) },
                                 leadingIcon = { Icon(Icons.Default.Password, contentDescription = null) },
                                 onClick = {
                                     showMenu = false
@@ -214,7 +231,7 @@ fun NoteEditorScreen(
                                 modifier = Modifier.testTag("menu_change_password")
                             )
                             DropdownMenuItem(
-                                text = { Text(if (showColorPicker) "Masquer la palette" else "Changer la couleur") },
+                                text = { Text(strings.editorMenuChangeColor) },
                                 leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null) },
                                 onClick = {
                                     showMenu = false
@@ -223,7 +240,7 @@ fun NoteEditorScreen(
                                 modifier = Modifier.testTag("menu_change_color")
                             )
                             DropdownMenuItem(
-                                text = { Text("Supprimer la note", color = MaterialTheme.colorScheme.error) },
+                                text = { Text(strings.editorMenuDeleteNote, color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Default.Delete,
@@ -262,25 +279,11 @@ fun NoteEditorScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "$wordCount mot(s)",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "•",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "$charCount caractère(s)",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = strings.editorWordCount(wordCount, charCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
                         Button(
                             onClick = { viewModel.saveCurrentNoteManually() },
@@ -294,7 +297,7 @@ fun NoteEditorScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Enregistrer")
+                            Text(strings.editorSaveTooltip)
                         }
                     }
                 }
@@ -332,7 +335,7 @@ fun NoteEditorScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = if (isAutoSave) saveStatus else "Sauvegarde auto désactivée",
+                            text = saveStatusText,
                             style = MaterialTheme.typography.labelMedium,
                             color = if (isAutoSave) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
                             maxLines = 1
@@ -344,109 +347,108 @@ fun NoteEditorScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Auto-save",
+                            text = strings.autoSaveLabel,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
                         )
                         Switch(
                             checked = isAutoSave,
                             onCheckedChange = { viewModel.toggleAutoSave(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = currentAccent),
-                            modifier = Modifier.testTag("editor_autosave_switch")
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = currentAccent
+                            ),
+                            modifier = Modifier.testTag("editor_autosave_toggle")
                         )
                     }
                 }
             }
 
-            // Optional Color picker
+            // Expandable color picker palette
             AnimatedVisibility(
                 visible = showColorPicker,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    NoteColorPicker(
-                        selectedIndex = colorIndex,
-                        onColorSelected = { viewModel.updateNoteColor(it) }
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        NoteColorPicker(
+                            selectedIndex = colorIndex,
+                            onColorSelected = { viewModel.updateNoteColor(it) }
+                        )
+                    }
                 }
             }
 
-            // Scrollable Note Writing Canvas
+            // Note Content Editor Area
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(20.dp)
             ) {
-                // Title Field
+                // Title field
                 BasicTextField(
                     value = title,
                     onValueChange = { viewModel.onTitleChange(it) },
                     textStyle = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onBackground
                     ),
                     cursorBrush = SolidColor(currentAccent),
-                    decorationBox = { innerTextField ->
-                        Box {
-                            if (title.isEmpty()) {
-                                Text(
-                                    text = "Titre de la note...",
-                                    style = TextStyle(
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("editor_title_input")
+                        .testTag("note_title_input"),
+                    decorationBox = { innerTextField ->
+                        if (title.isEmpty()) {
+                            Text(
+                                text = strings.editorTitlePlaceholder,
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = currentAccent.copy(alpha = 0.3f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Content Field
+                // Content body field
                 BasicTextField(
                     value = content,
                     onValueChange = { viewModel.onContentChange(it) },
                     textStyle = TextStyle(
                         fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        lineHeight = 26.sp,
+                        color = MaterialTheme.colorScheme.onBackground
                     ),
                     cursorBrush = SolidColor(currentAccent),
-                    decorationBox = { innerTextField ->
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            if (content.isEmpty()) {
-                                Text(
-                                    text = "Commencez à écrire votre note sécurisée ici...\nLe texte est protégé par votre mot de passe et sauvegardé selon vos préférences.",
-                                    style = TextStyle(
-                                        fontSize = 16.sp,
-                                        lineHeight = 24.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(500.dp)
-                        .testTag("editor_content_input")
+                        .weight(1f, fill = false)
+                        .testTag("note_content_input"),
+                    decorationBox = { innerTextField ->
+                        if (content.isEmpty()) {
+                            Text(
+                                text = strings.editorContentPlaceholder,
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    lineHeight = 26.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                                )
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
             }
         }
@@ -456,6 +458,7 @@ fun NoteEditorScreen(
     if (showChangePasswordDialog) {
         ChangePasswordDialog(
             currentHint = hint,
+            strings = strings,
             onDismiss = { showChangePasswordDialog = false },
             onConfirm = { newPass, newHint ->
                 viewModel.updateNotePassword(newPass, newHint)
@@ -464,22 +467,21 @@ fun NoteEditorScreen(
         )
     }
 
-    // Delete Confirmation with Password Dialog
-    if (showDeleteConfirmDialog) {
-        currentNote?.let { note ->
-            DeleteNotePasswordDialog(
-                note = note,
-                onDismiss = { showDeleteConfirmDialog = false },
-                onConfirmDelete = { password ->
-                    if (viewModel.verifyPassword(note, password)) {
-                        viewModel.deleteCurrentNote()
-                        showDeleteConfirmDialog = false
-                        true
-                    } else {
-                        false
-                    }
+    // Delete confirmation dialog
+    if (showDeleteConfirmDialog && currentNote != null) {
+        DeleteNotePasswordDialog(
+            note = currentNote!!,
+            strings = strings,
+            onDismiss = { showDeleteConfirmDialog = false },
+            onConfirmDelete = { enteredPass ->
+                if (viewModel.verifyPassword(currentNote!!, enteredPass)) {
+                    viewModel.deleteCurrentNote()
+                    showDeleteConfirmDialog = false
+                    true
+                } else {
+                    false
                 }
-            )
-        }
+            }
+        )
     }
 }

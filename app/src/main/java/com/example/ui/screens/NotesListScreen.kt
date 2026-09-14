@@ -21,12 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.EnhancedEncryption
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,7 +35,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -59,6 +56,7 @@ import com.example.ui.components.CreateNoteDialog
 import com.example.ui.components.DeleteNotePasswordDialog
 import com.example.ui.components.NoteCard
 import com.example.ui.components.UnlockDialog
+import com.example.ui.strings.AppStrings
 import com.example.ui.viewmodel.NoteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +68,9 @@ fun NotesListScreen(
     val notes by viewModel.notesList.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val unlockedNoteIds by viewModel.unlockedNoteIds.collectAsStateWithLifecycle()
+    val currentLanguage by viewModel.settingsManager.language.collectAsStateWithLifecycle()
+
+    val strings = remember(currentLanguage) { AppStrings(currentLanguage) }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var noteToUnlock by remember { mutableStateOf<SecureNote?>(null) }
@@ -102,16 +103,28 @@ fun NotesListScreen(
                         }
                         Column {
                             Text(
-                                text = "Notes Sécurisées",
+                                text = strings.appTitle,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (notes.isEmpty()) "Aucune note" else "${notes.size} note(s) protégée(s)",
+                                text = if (notes.isEmpty()) strings.appSubtitleEmpty else strings.appSubtitleCount(notes.size),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                },
+                actions = {
+                    // Hamburger / 3-dots button to open Settings
+                    IconButton(
+                        onClick = { viewModel.openSettings() },
+                        modifier = Modifier.testTag("settings_menu_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = strings.settings
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -123,7 +136,7 @@ fun NotesListScreen(
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Nouvelle Note") },
+                text = { Text(strings.newNoteFab) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.testTag("create_note_fab")
@@ -140,11 +153,11 @@ fun NotesListScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Rechercher par titre...") },
+                placeholder = { Text(strings.searchPlaceholder) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Rechercher",
+                        contentDescription = strings.searchPlaceholder,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -158,7 +171,7 @@ fun NotesListScreen(
                             onClick = { viewModel.onSearchQueryChanged("") },
                             modifier = Modifier.testTag("clear_search_button")
                         ) {
-                            Icon(Icons.Default.Clear, contentDescription = "Effacer la recherche")
+                            Icon(Icons.Default.Clear, contentDescription = strings.clearSearch)
                         }
                     }
                 },
@@ -207,16 +220,16 @@ fun NotesListScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = if (searchQuery.isNotBlank()) "Aucune note trouvée" else "Votre coffre est vide",
+                            text = if (searchQuery.isNotBlank()) strings.noSearchResultsTitle else strings.emptyVaultTitle,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (searchQuery.isNotBlank())
-                                "Aucun résultat pour « $searchQuery »"
+                                strings.noSearchResults(searchQuery)
                             else
-                                "Créez votre première note confidentielle en cliquant sur le bouton « Nouvelle Note » ci-dessous.",
+                                strings.emptyVaultMessage,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -235,6 +248,7 @@ fun NotesListScreen(
                         NoteCard(
                             note = note,
                             isUnlocked = isUnlocked,
+                            strings = strings,
                             onClick = {
                                 if (isUnlocked) {
                                     viewModel.openUnlockedNote(note)
@@ -255,6 +269,7 @@ fun NotesListScreen(
     noteToUnlock?.let { note ->
         UnlockDialog(
             note = note,
+            strings = strings,
             onDismiss = { noteToUnlock = null },
             onUnlock = { password ->
                 val success = viewModel.unlockAndOpenNote(note, password)
@@ -269,6 +284,7 @@ fun NotesListScreen(
     // Create Note Dialog
     if (showCreateDialog) {
         CreateNoteDialog(
+            strings = strings,
             onDismiss = { showCreateDialog = false },
             onCreate = { title, password, hint, colorIndex, isAutoSave ->
                 viewModel.createAndOpenNote(title, password, hint, colorIndex, isAutoSave)
@@ -281,6 +297,7 @@ fun NotesListScreen(
     noteToDelete?.let { note ->
         DeleteNotePasswordDialog(
             note = note,
+            strings = strings,
             onDismiss = { noteToDelete = null },
             onConfirmDelete = { password ->
                 if (viewModel.verifyPassword(note, password)) {
