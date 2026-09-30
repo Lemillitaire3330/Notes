@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -33,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.data.settings.AppLanguage
 import com.example.ui.strings.AppStrings
@@ -93,6 +96,10 @@ fun CreateNoteDialog(
                     onValueChange = { title = it },
                     label = { Text(strings.noteTitleLabel) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Next
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("create_note_title_input")
@@ -108,6 +115,7 @@ fun CreateNoteDialog(
                     label = strings.notePasswordLabel,
                     isError = hasAttemptedSubmit && isPasswordEmpty,
                     errorMessage = strings.passwordRequiredError,
+                    imeAction = ImeAction.Next,
                     testTag = "create_note_password_input"
                 )
 
@@ -118,6 +126,10 @@ fun CreateNoteDialog(
                     label = { Text(strings.hintOptionalLabel) },
                     placeholder = { Text(strings.hintPlaceholder) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("create_note_hint_input")

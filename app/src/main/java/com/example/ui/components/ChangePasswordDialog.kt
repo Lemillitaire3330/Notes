@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material3.AlertDialog
@@ -25,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.data.settings.AppLanguage
 import com.example.ui.strings.AppStrings
@@ -88,6 +91,7 @@ fun ChangePasswordDialog(
                     label = strings.newPasswordLabel,
                     isError = isError && newPassword.trim().isEmpty(),
                     errorMessage = strings.passwordRequiredError,
+                    imeAction = ImeAction.Next,
                     testTag = "change_password_input"
                 )
 
@@ -96,6 +100,10 @@ fun ChangePasswordDialog(
                     onValueChange = { newHint = it },
                     label = { Text(strings.hintOptionalLabel) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("change_hint_input")
